@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
 import './App.css'
 
 interface Station {
@@ -379,6 +380,149 @@ function getCurrentDayKind(): number {
   return 1; // 平日
 }
 
+// --- Sub-components ---
+
+function SearchView({ 
+  query, setQuery, stations, url, onSearch, onSelect 
+}: { 
+  query: string, setQuery: (v: string) => void, stations: Station[], url: string, onSearch: () => void, onSelect: (s: Station) => void 
+}) {
+  return (
+    <div className="search-view">
+      <div className="search-box">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="駅名を入力 (例: 新宿)"
+        />
+        <button onClick={onSearch}>検索</button>
+      </div>
+      <div className="stations-list">
+        {stations.length > 0 ? (
+          <>
+            <ul>
+              {stations.map((station) => (
+                <li key={station.name} className="list-item card" onClick={() => onSelect(station)} role='button'>
+                  <span className="station-name">{station.name}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="external-link">
+              <a href={url} target="_blank" rel="noopener noreferrer">Yahoo!路線情報で開く</a>
+            </div>
+          </>
+        ) : (
+          <p className="placeholder-text">駅を検索してください</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LinesView({
+  lines, url, nextTrains, isSearching, onNextSearch, onSelect
+}: {
+  lines: LineDestination[], url: string, nextTrains: Train[], isSearching: boolean, onNextSearch: () => void, onSelect: (l: LineDestination) => void
+}) {
+  return (
+    <div className="lines-view">
+      <div className="action-banner">
+        <button onClick={onNextSearch} disabled={isSearching || lines.length === 0} className="primary-btn full-width">
+          {isSearching ? '検索中...' : '次の電車を最短検索'}
+        </button>
+      </div>
+
+      {nextTrains.length > 0 && (
+        <div className="next-trains-section card">
+          <h4 className="card-title">直近の出発予定</h4>
+          <ul className="timetable-list">
+            {nextTrains.map((t, i) => (
+              <li key={i} className="timetable-item card">
+                <span className="time">{t.time}</span>
+                <span className="sr-only">&nbsp;</span>
+                <span className="details">
+                  <span className="line-name" style={{ fontSize: '0.8em', display: 'block', opacity: 0.8 }}>{t.lineName}</span>
+                  <span className="type">{t.type}</span>
+                  <span className="sr-only">&nbsp;</span>
+                  <span className="dest">{t.destination}行</span>
+                </span>
+                {t.caution && <><span className="sr-only">&nbsp;</span><span className="caution">{t.caution}</span></>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="lines-section">
+        <h3 className="section-label">路線を選択</h3>
+        {lines.length === 0 ? (
+          <p className="loading-text">路線情報を読み込み中...</p>
+        ) : (
+          <ul className="line-list">
+            {lines.map((line, index) => (
+              <li key={index} className="list-item card" onClick={() => onSelect(line)}>
+                <div className="line-info">
+                  <span className="line-name">{line.lineName}</span>
+                  <span className="line-dest">{line.destination}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="external-link">
+          <a href={url} target="_blank" rel="noopener noreferrer">Yahoo!路線情報で開く</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TimetableView({
+  trains, url, dayKind, onKindChange
+}: {
+  trains: Train[], url: string, dayKind: number, onKindChange: (k: number) => void
+}) {
+  return (
+    <div className="timetable-view">
+      <div className="sticky-controls">
+        <div className="kind-selector">
+          {[{ label: '平日', val: 1 }, { label: '土曜', val: 2 }, { label: '日祝', val: 4 }].map(k => (
+            <button key={k.val} onClick={() => onKindChange(k.val)} className={`kind-btn ${dayKind === k.val ? 'active' : ''}`}>
+              {k.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="timetable-content">
+        {trains.length === 0 ? (
+          <p className="loading-text">時刻表を読み込み中...</p>
+        ) : (
+          <ul className="timetable-list">
+            {trains.map((t, i) => (
+              <li key={i} className="timetable-item card">
+                <span className="time">{t.time}</span>
+                <span className="sr-only">&nbsp;</span>
+                <span className="details">
+                  <span className="type">{t.type}</span>
+                  <span className="sr-only">&nbsp;</span>
+                  <span className="dest">{t.destination}行</span>
+                </span>
+                {t.caution && <><span className="sr-only">&nbsp;</span><span className="caution">{t.caution}</span></>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div className="external-link">
+        <a href={url} target="_blank" rel="noopener noreferrer">Yahoo!路線情報で時刻表を見る</a>
+      </div>
+    </div>
+  );
+}
+
+// --- Main App Component ---
+
 function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [view, setView] = useState<'search' | 'lines' | 'timetable'>('search');
@@ -395,8 +539,32 @@ function App() {
   const [nextTrains, setNextTrains] = useState<Train[]>([]);
   const [isSearchingNext, setIsSearchingNext] = useState(false);
 
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const backHandler = CapacitorApp.addListener('backButton', () => {
+      if (showAbout) {
+        setShowAbout(false);
+      } else if (view === 'timetable') {
+        setView('lines');
+      } else if (view === 'lines') {
+        setView('search');
+      } else {
+        CapacitorApp.exitApp();
+      }
+    });
+
+    return () => {
+      backHandler.then(h => h.remove());
+    };
+  }, [view, showAbout]);
+
   const handleSearch = async () => {
     const result = await searchStations(searchQuery);
+
+    if (result.stations.length > 0) {
+      window.navigator.vibrate(200);
+    }
 
     setStations(result.stations);
     setSearchUrl(result.url);
@@ -419,6 +587,7 @@ function App() {
     setNextTrains([]);
     try {
       const result = await fetchLines(station.url);
+      window.navigator.vibrate(200);
       setLines(result.lines);
       setLinesUrl(result.url);
     } catch (e) {
@@ -459,6 +628,7 @@ function App() {
         .slice(0, 15);
 
       setNextTrains(futureTrains);
+      window.navigator.vibrate(200);
     } catch (e) {
       console.error(e);
       alert("次列車の取得に失敗しました");
@@ -477,6 +647,7 @@ function App() {
       const result = await fetchTimetable(line.url);
       setTrains(result.trains);
       setTimetableUrl(result.url);
+      window.navigator.vibrate(200);
     } catch (e) {
       console.error("Failed to fetch timetable:", e);
       alert("時刻表の取得に失敗しました");
@@ -510,153 +681,40 @@ function App() {
         {view !== 'search' && (
           <button onClick={handleBack} className="back-btn">← 戻る</button>
         )}
-        <h1 className="app-title">{view === 'search' ? 'NEX-T' : view === 'lines' ? selectedStation?.name : selectedLine?.lineName}</h1>
+        <h1 className="app-title">
+          {view === 'search' ? 'NEX-T' : view === 'lines' ? selectedStation?.name : selectedLine?.lineName}
+        </h1>
       </header>
 
       {view === 'search' && (
-        <div className="search-view">
-          <div className="search-box">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="駅名を入力 (例: 新宿)"
-            />
-            <button onClick={handleSearch}>検索</button>
-          </div>
-
-          <div className="stations-list">
-            {stations.length > 0 ? (
-              <>
-                <ul>
-                  {stations.map((station) => (
-                    <li key={station.name} className="list-item card" onClick={() => handleStationSelect(station)} role='button'>
-                      <span className="station-name">{station.name}</span>
-                      {/* <span className="chevron">›</span> */}
-                    </li>
-                  ))}
-                </ul>
-                <div className="external-link">
-                  <a href={searchUrl} target="_blank" rel="noopener noreferrer">Yahoo!路線情報で開く</a>                </div>
-              </>
-            ) : (
-              <p className="placeholder-text">駅を検索してください</p>
-            )}
-          </div>
-        </div>
+        <SearchView
+          query={searchQuery}
+          setQuery={setSearchQuery}
+          stations={stations}
+          url={searchUrl}
+          onSearch={handleSearch}
+          onSelect={handleStationSelect}
+        />
       )}
 
       {view === 'lines' && (
-        <div className="lines-view">
-          <div className="action-banner">
-            <button
-              onClick={handleNextTrains}
-              disabled={isSearchingNext || lines.length === 0}
-              className="primary-btn full-width"
-            >
-              {isSearchingNext ? '検索中...' : '次の電車を最短検索'}
-            </button>
-          </div>
-
-          {nextTrains.length > 0 && (
-            <div className="next-trains-section card">
-              <h4 className="card-title">直近の出発予定</h4>
-              <ul className="timetable-list">
-                {nextTrains.map((t, i) => (
-                  <li key={i} className="timetable-item card">
-                    <span className="time">{t.time}</span>
-                    <span className="sr-only">&nbsp;</span>
-                    <span className="details">
-                      <span className="line-name" style={{ fontSize: '0.8em', display: 'block', opacity: 0.8 }}>{t.lineName}</span>
-                      <span className="type">{t.type}</span>
-                      <span className="sr-only">&nbsp;</span>
-                      <span className="dest">{t.destination}行</span>
-                    </span>
-                    {t.caution && (
-                      <>
-                        <span className="sr-only">&nbsp;</span>
-                        <span className="caution">{t.caution}</span>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <div className="lines-section">
-            <h3 className="section-label">路線を選択</h3>
-            {lines.length === 0 ? (
-              <p className="loading-text">路線情報を読み込み中...</p>
-            ) : (
-              <ul className="line-list">
-                {lines.map((line, index) => (
-                  <li key={index} className="list-item card" onClick={() => handleLineSelect(line)}>
-                    <div className="line-info">
-                      <span className="line-name">{line.lineName}</span>
-                      <span className="line-dest">{line.destination}</span>
-                    </div>
-                    {/* <span className="chevron">›</span> */}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="external-link">
-              <a href={linesUrl} target="_blank" rel="noopener noreferrer">Yahoo!路線情報で開く</a>
-            </div>
-          </div>
-        </div>
+        <LinesView
+          lines={lines}
+          url={linesUrl}
+          nextTrains={nextTrains}
+          isSearching={isSearchingNext}
+          onNextSearch={handleNextTrains}
+          onSelect={handleLineSelect}
+        />
       )}
 
       {view === 'timetable' && (
-        <div className="timetable-view">
-          <div className="sticky-controls">
-            <div className="kind-selector">
-              {[
-                { label: '平日', val: 1 },
-                { label: '土曜', val: 2 },
-                { label: '日祝', val: 4 }
-              ].map(k => (
-                <button
-                  key={k.val}
-                  onClick={() => handleKindChange(k.val)}
-                  className={`kind-btn ${dayKind === k.val ? 'active' : ''}`}
-                >
-                  {k.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="timetable-content">
-            {trains.length === 0 ? (
-              <p className="loading-text">時刻表を読み込み中...</p>
-            ) : (
-              <ul className="timetable-list">
-                {trains.map((t, i) => (
-                  <li key={i} className="timetable-item card">
-                    <span className="time">{t.time}</span>
-                    <span className="sr-only">&nbsp;</span>
-                    <span className="details">
-                      <span className="type">{t.type}</span>
-                      <span className="sr-only">&nbsp;</span>
-                      <span className="dest">{t.destination}行</span>
-                    </span>
-                    {t.caution && (
-                      <>
-                        <span className="sr-only">&nbsp;</span>
-                        <span className="caution">{t.caution}</span>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <div className="external-link">
-            <a href={timetableUrl} target="_blank" rel="noopener noreferrer">Yahoo!路線情報で時刻表を見る</a>
-          </div>
-        </div>
+        <TimetableView
+          trains={trains}
+          url={timetableUrl}
+          dayKind={dayKind}
+          onKindChange={handleKindChange}
+        />
       )}
 
       <footer className="app-footer">
