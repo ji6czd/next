@@ -1,0 +1,64 @@
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: #242424;
+  color: rgba(255, 255, 255, 0.87);
+  padding: 20px;
+  border-radius: 8px;
+  width: 80%;
+  max-width: 500px;
+  max-height: 80%;
+  overflow-y: auto;
+  text-align: left;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-title {
+  margin-top: 0;
+}
+
+.modal-subtitle {
+  border-bottom: 1px solid #555;
+  padding-bottom: 5px;
+}
+
+.library-list {
+  list-style: none;
+  padding: 0;
+}
+
+.library-item {
+  margin-bottom: 15px;
+}
+
+.library-name {
+  font-weight: bold;
+}
+
+.library-license {
+  font-size: 0.9em;
+  color: #aaa;
+}
+
+.library-copyright {
+  font-size: 0.85em;
+  color: #888;
+}
+
+.modal-footer {
+  text-align: center;
+  margin-top: 20px;
+}

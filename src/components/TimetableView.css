@@ -1,0 +1,168 @@
+/* Timetable View Styles */
+.timetable-view {
+  padding: 20px;
+}
+
+.sticky-controls {
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+  padding: 10px 0;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #ddd;
+}
+
+.kind-selector {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.kind-btn {
+  border: 1px solid #999;
+  padding: 8px 16px;
+  cursor: pointer;
+  background: white;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+}
+
+.kind-btn:hover {
+  background: #f5f5f5;
+}
+
+.kind-btn.active {
+  font-weight: bold;
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.timetable-content {
+  margin-top: 10px;
+}
+
+.loading-text {
+  color: #666;
+  text-align: center;
+  font-style: italic;
+  margin: 40px 0;
+}
+
+.timetable-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.timetable-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  margin-bottom: 2px;
+  background: #fff;
+  border-radius: 0;
+  border-bottom: 1px solid #eee;
+  box-shadow: none;
+}
+
+.timetable-item:first-child {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.timetable-item:last-child {
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  border-bottom: none;
+}
+
+.timetable-item .time {
+  font-family: 'Roboto Mono', 'Courier New', monospace;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #333;
+  width: 70px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.timetable-item .details {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  padding-left: 12px;
+  border-left: 1px solid #eee;
+}
+
+.timetable-item .type {
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: #d32f2f;
+  margin-bottom: 2px;
+}
+
+.timetable-item .dest {
+  font-size: 1rem;
+  color: #1a1a1a;
+  font-weight: 500;
+}
+
+.timetable-item .caution {
+  font-size: 0.7rem;
+  background: #fff3e0;
+  color: #e65100;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: auto;
+  align-self: flex-start;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.external-link {
+  margin-top: 30px;
+  text-align: center;
+}
+
+.external-link a {
+  color: #007bff;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.external-link a:hover {
+  text-decoration: underline;
+}
+
+.card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Mobile adjustments */
+@media (max-width: 480px) {
+  .timetable-item .time {
+    font-size: 1.15rem;
+    width: 60px;
+  }
+  .timetable-item .dest {
+    font-size: 0.9rem;
+  }
+}

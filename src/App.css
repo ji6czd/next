@@ -1,188 +1,67 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
-
-/* Modal Styles */
-.modal-overlay {
-  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  background-color: rgba(0,0,0,0.8); color: white;
-  display: flex; justify-content: center; align-items: center; z-index: 1000;
-}
-.modal-content {
-  background-color: #242424; color: rgba(255, 255, 255, 0.87); padding: 20px; border-radius: 8px;
-  width: 80%; max-width: 500px; max-height: 80%; overflow-y: auto; text-align: left;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-.modal-title { margin-top: 0; }
-.modal-subtitle { border-bottom: 1px solid #555; padding-bottom: 5px; }
-.library-list { list-style: none; padding: 0; }
-.library-item { margin-bottom: 15px; }
-.library-name { font-weight: bold; }
-.library-license { font-size: 0.9em; color: #aaa; }
-.library-copyright { font-size: 0.85em; color: #888; }
-.modal-footer { text-align: center; margin-top: 20px; }
-
-/* Line and Timetable Sections */
-.lines-section, .timetable-section { margin: 20px 0; border: 1px solid #ccc; padding: 10px; text-align: left; }
-.section-header { display: flex; justify-content: space-between; align-items: center; }
-.next-trains-btn { padding: 8px 12px; font-size: 0.9rem; cursor: pointer; }
-
-/* Next Trains Table */
-.next-trains-card { background: #333; color: #fff; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
-.next-trains-title { margin-top: 0; border-bottom: 1px solid #666; padding-bottom: 5px; }
-.scroll-y { overflow-y: auto; }
-.next-train-table-wrapper { max-height: 300px; }
-.full-width-table { width: 100%; border-collapse: collapse; }
-.next-trains-table { font-size: 0.85rem; color: white; }
-.sticky-thead { position: sticky; top: 0; background: #444; }
-.row-border { border-bottom: 1px solid #444; }
-.cell-padding { padding: 5px; }
-.time-col { font-weight: bold; color: #ffd700; }
-.dim-text { opacity: 0.9; }
-.caution-col { font-size: 0.8em; }
-
-/* List Styles */
-.line-list { list-style: none; padding: 0; }
-.line-btn { background: none; border: none; color: blue; text-decoration: underline; cursor: pointer; padding: 0; font: inherit; text-align: left; }
-.link-info { margin-top: 10px; }
-.station-link { cursor: pointer; text-decoration: underline; color: blue; margin: 5px 0; }
-
-/* Timetable Utilities */
-.kind-selector { display: flex; gap: 5px; }
-.kind-btn { border: 1px solid #999; padding: 5px 10px; cursor: pointer; background: transparent; }
-.kind-btn.active { font-weight: bold; background-color: #ddd; }
-.timetable-wrapper { margin-top: 10px; max-height: 400px; }
-.timetable-table { font-size: 0.9rem; }
-.timetable-thead { position: sticky; top: 0; background: white; border-bottom: 2px solid #333; }
-.timetable-row { border-bottom: 1px solid #ddd; }
-
-/* Timetable List Styles */
-.timetable-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+/* Global App Styles */
+.App {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-.timetable-item.card {
+/* Header Navigation */
+.app-header-nav {
+  background: #007bff;
+  color: white;
+  padding: 15px 20px;
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  margin-bottom: 2px;
-  background: #fff;
-  border-radius: 0;
-  border-bottom: 1px solid #eee;
-  box-shadow: none;
+  gap: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.timetable-item.card:first-child {
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
-}
-
-.timetable-item.card:last-child {
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 8px;
-  border-bottom: none;
-}
-
-.timetable-item .time {
-  font-family: 'Roboto Mono', 'Courier New', monospace;
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: #333;
-  width: 70px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-}
-
-.timetable-item .details {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  padding-left: 12px;
-  border-left: 1px solid #eee;
-}
-
-.timetable-item .type {
-  font-size: 0.75rem;
-  font-weight: bold;
-  color: #d32f2f; /* 急行などの強調色 */
-  margin-bottom: 2px;
-}
-
-.timetable-item .dest {
-  font-size: 1rem;
-  color: #1a1a1a;
-  font-weight: 500;
-}
-
-.timetable-item .caution {
-  font-size: 0.7rem;
-  background: #fff3e0;
-  color: #e65100;
-  padding: 2px 6px;
+.back-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  padding: 8px 16px;
   border-radius: 4px;
-  margin-left: auto;
-  align-self: flex-start;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: background-color 0.2s;
 }
 
-/* モバイル向けの微調整 */
-@media (max-width: 480px) {
-  .timetable-item .time {
-    font-size: 1.15rem;
-    width: 60px;
-  }
-  .timetable-item .dest {
-    font-size: 0.9rem;
-  }
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.app-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  flex-grow: 1;
 }
 
 /* Footer */
-.app-footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ccc; text-align: center; }
-.about-btn { background: none; border: none; color: #666; text-decoration: underline; cursor: pointer; font-size: 0.9rem; }
+.app-footer {
+  margin-top: auto;
+  padding: 20px;
+  border-top: 1px solid #ddd;
+  text-align: center;
+  background: #f9f9f9;
+}
 
+.about-btn {
+  background: none;
+  border: none;
+  color: #666;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+}
+
+.about-btn:hover {
+  color: #333;
+}
+
+/* Utility Classes */
 .sr-only {
   position: absolute;
   width: 1px;
