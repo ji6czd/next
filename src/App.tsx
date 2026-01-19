@@ -18,6 +18,7 @@ interface Train {
   type: string
   destination: string
   caution: string
+  lineName?: string; // 追加
 }
 
 interface LibraryInfo {
@@ -32,6 +33,8 @@ const LIBRARIES: LibraryInfo[] = [
   { name: 'Vite', license: 'MIT', copyright: 'Copyright (c) 2019-present, Yuxi (Evan) You and Vite contributors' },
   { name: 'Capacitor', license: 'MIT', copyright: 'Copyright (c) 2017-present Drifty Co.' },
 ];
+
+const PC_CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 function AboutModal({ onClose }: { onClose: () => void }) {
   const modalRef = useRef<HTMLDivElement>(null);
@@ -79,37 +82,23 @@ function AboutModal({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.8)', color: 'white',
-      display: 'flex', justifyContent: 'center', alignItems: 'center',
-      zIndex: 1000
-    }}
-    role="dialog"
-    aria-modal="true"
-    >
-      <div 
-        ref={modalRef}
-        style={{
-        backgroundColor: '#242424', color: 'rgba(255, 255, 255, 0.87)', padding: '20px', borderRadius: '8px',
-        width: '80%', maxWidth: '500px', maxHeight: '80%', overflowY: 'auto', textAlign: 'left',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-      }}>
-        <h2 style={{ marginTop: 0 }}>このアプリについて</h2>
+    <div className="modal-overlay" role="dialog" aria-modal="true">
+      <div ref={modalRef} className="modal-content">
+        <h2 className="modal-title">このアプリについて</h2>
         <p>Copyright © 2026 NEX-T App</p>
-        
-        <h3 style={{ borderBottom: '1px solid #555', paddingBottom: '5px' }}>オープンソースライセンス</h3>
-        <ul style={{ listStyle: 'none', padding: 0 }}>
+
+        <h3 className="modal-subtitle">オープンソースライセンス</h3>
+        <ul className="library-list">
           {LIBRARIES.map((lib) => (
-            <li key={lib.name} style={{ marginBottom: '15px' }}>
-              <div style={{ fontWeight: 'bold' }}>{lib.name}</div>
-              <div style={{ fontSize: '0.9em', color: '#aaa' }}>License: {lib.license}</div>
-              {lib.copyright && <div style={{ fontSize: '0.85em', color: '#888' }}>{lib.copyright}</div>}
+            <li key={lib.name} className="library-item">
+              <div className="library-name">{lib.name}</div>
+              <div className="library-license">License: {lib.license}</div>
+              {lib.copyright && <div className="library-copyright">{lib.copyright}</div>}
             </li>
           ))}
         </ul>
-        
-        <div style={{ textAlign: 'center', marginTop: '20px' }}>
+
+        <div className="modal-footer">
           <button onClick={onClose} style={{ padding: '8px 16px', cursor: 'pointer' }}>閉じる</button>
         </div>
       </div>
@@ -154,10 +143,10 @@ function normalizeYahooUrl(rawUrl: string): string {
   return url;
 }
 
-async function searchStations(query: string): Promise<Station[]> {
+async function searchStations(query: string): Promise<{ stations: Station[], url: string }> {
   const url = getApiUrl(`/timetable/search?q=${encodeURIComponent(query)}`);
 
-  const res = await fetch(url);
+  const res = await fetch(url, Capacitor.isNativePlatform() ? { headers: { 'User-Agent': PC_CHROME_UA } } : {});
   const html = await res.text();
 
   // Capacitor HttpプラグインによるインターセプターURLの処理
@@ -166,10 +155,12 @@ async function searchStations(query: string): Promise<Station[]> {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
   const urlObj = new URL(currentUrl);
+  const titleEl = doc.querySelector('h1');
+  const titleText = titleEl?.textContent || '';
 
-  // Check if we are on the search results page or have been redirected to a specific station
-  // Search page URL usually contains '/timetable/search'
-  if (urlObj.pathname.includes('/search')) {
+  // 検索結果ページか、直接駅ページかを判定
+  // titleTextに「検索結果」が含まれる場合は検索結果ページ
+  if (titleText.includes('の検索結果')) {
     // Look for links that point to timetables
     const elements = doc.querySelectorAll('a[href^="/timetable/"]');
     const results: Station[] = [];
@@ -189,7 +180,7 @@ async function searchStations(query: string): Promise<Station[]> {
     // Filter out duplicate or irrelevant generic generic timetable links if any
     const uniqueResults = Array.from(new Map(results.map(item => [item.name, item])).values());
 
-    return uniqueResults;
+    return { stations: uniqueResults, url: normalizeYahooUrl(currentUrl) };
   } else {
     // Direct hit: Single station page
     const titleEl = doc.querySelector('#mdSearchLine h1.title') || doc.querySelector('h1');
@@ -204,10 +195,13 @@ async function searchStations(query: string): Promise<Station[]> {
 
     const realUrl = `https://transit.yahoo.co.jp${yahooPath}${urlObj.search}`;
 
-    return [{
-      name: name,
-      url: realUrl,
-    }];
+    return {
+      stations: [{
+        name: name,
+        url: realUrl,
+      }],
+      url: realUrl
+    };
   }
 }
 
@@ -221,7 +215,7 @@ async function fetchLines(stationUrl: string): Promise<{ lines: LineDestination[
 
   const fetchUrl = getApiUrl(path);
 
-  const res = await fetch(fetchUrl);
+  const res = await fetch(fetchUrl, Capacitor.isNativePlatform() ? { headers: { 'User-Agent': PC_CHROME_UA } } : {});
   const html = await res.text();
   const currentUrl = normalizeYahooUrl(res.url);
 
@@ -255,14 +249,16 @@ async function fetchLines(stationUrl: string): Promise<{ lines: LineDestination[
   return { lines, url: currentUrl };
 }
 
-async function fetchTimetable(lineUrl: string): Promise<{ trains: Train[], url: string }> {
+async function fetchTimetable(lineUrl: string, kind: number = 1): Promise<{ trains: Train[], url: string }> {
   const urlObj = new URL(lineUrl);
   // Web環境（プロキシー経由）の場合のパス変換
-  const path = urlObj.pathname + urlObj.search;
+  const searchParams = new URLSearchParams(urlObj.search);
+  searchParams.set('kind', kind.toString());
+  const path = urlObj.pathname + '?' + searchParams.toString();
 
   const fetchUrl = getApiUrl(path);
 
-  const res = await fetch(fetchUrl);
+  const res = await fetch(fetchUrl, Capacitor.isNativePlatform() ? { headers: { 'User-Agent': PC_CHROME_UA } } : {});
   const html = await res.text();
   const currentUrl = normalizeYahooUrl(res.url);
 
@@ -374,32 +370,53 @@ async function fetchTimetable(lineUrl: string): Promise<{ trains: Train[], url: 
   return { trains, url: currentUrl };
 }
 
+// 曜日からYahoo!のkind値を返すヘルパー
+function getCurrentDayKind(): number {
+  const now = new Date();
+  const day = now.getDay(); // 0: 日, 1: 月... 6: 土
+  if (day === 0) return 4; // 日・祝
+  if (day === 6) return 2; // 土曜
+  return 1; // 平日
+}
+
 function App() {
   const [searchQuery, setSearchQuery] = useState('')
-
+  const [view, setView] = useState<'search' | 'lines' | 'timetable'>('search');
   const [stations, setStations] = useState<Station[]>([])
+  const [searchUrl, setSearchUrl] = useState<string>('');
   const [lines, setLines] = useState<LineDestination[]>([])
   const [linesUrl, setLinesUrl] = useState<string>('');
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+  const [selectedLine, setSelectedLine] = useState<LineDestination | null>(null);
+  const [dayKind, setDayKind] = useState<number>(1);
   const [trains, setTrains] = useState<Train[]>([]);
   const [timetableUrl, setTimetableUrl] = useState<string>('');
   const [showAbout, setShowAbout] = useState(false);
+  const [nextTrains, setNextTrains] = useState<Train[]>([]);
+  const [isSearchingNext, setIsSearchingNext] = useState(false);
 
-  const handleSearch = () => {
-    searchStations(searchQuery).then((results) => {
-      setStations(results);
-      setLines([]);
-      setLinesUrl('');
-      setSelectedStation(null);
-      setTrains([]);
-    })
+  const handleSearch = async () => {
+    const result = await searchStations(searchQuery);
+
+    setStations(result.stations);
+    setSearchUrl(result.url);
+    setView('search');
+    setLines([]);
+    setLinesUrl('');
+    setSelectedStation(null);
+    setSelectedLine(null);
+    setTrains([]);
+    setNextTrains([]);
   }
 
   const handleStationSelect = async (station: Station) => {
     setSelectedStation(station);
+    setView('lines');
     setLines([]); // クリアしてから読み込み
     setLinesUrl('');
+    setSelectedLine(null);
     setTrains([]);
+    setNextTrains([]);
     try {
       const result = await fetchLines(station.url);
       setLines(result.lines);
@@ -410,10 +427,53 @@ function App() {
     }
   };
 
+  const handleNextTrains = async () => {
+    if (lines.length === 0) return;
+    setIsSearchingNext(true);
+    setNextTrains([]);
+
+    const kind = getCurrentDayKind();
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    try {
+      const allTrainsPromises = lines.map(async (line) => {
+        const result = await fetchTimetable(line.url, kind);
+        return result.trains.map(t => ({ ...t, lineName: line.lineName }));
+      });
+
+      const results = await Promise.all(allTrainsPromises);
+      const flattened = results.flat();
+
+      const futureTrains = flattened
+        .filter(t => {
+          const [h, m] = t.time.split(':').map(Number);
+          const trainMinutes = h * 60 + m;
+          return trainMinutes >= currentMinutes;
+        })
+        .sort((a, b) => {
+          const [ah, am] = a.time.split(':').map(Number);
+          const [bh, bm] = b.time.split(':').map(Number);
+          return (ah * 60 + am) - (bh * 60 + bm);
+        })
+        .slice(0, 15);
+
+      setNextTrains(futureTrains);
+    } catch (e) {
+      console.error(e);
+      alert("次列車の取得に失敗しました");
+    } finally {
+      setIsSearchingNext(false);
+    }
+  };
+
   const handleLineSelect = async (line: LineDestination) => {
+    setSelectedLine(line);
+    setView('timetable');
     setTrains([]); // Clear previous
     setTimetableUrl('');
     try {
+      // kindを指定せず、Yahoo側のデフォルト（現在時刻に応じた種別）で取得
       const result = await fetchTimetable(line.url);
       setTrains(result.trains);
       setTimetableUrl(result.url);
@@ -423,98 +483,185 @@ function App() {
     }
   };
 
+  const handleKindChange = async (kind: number) => {
+    setDayKind(kind);
+    if (selectedLine) {
+      setTrains([]); // Clear previous
+      setTimetableUrl('');
+      try {
+        const result = await fetchTimetable(selectedLine.url, kind);
+        setTrains(result.trains);
+        setTimetableUrl(result.url);
+      } catch (e) {
+        console.error("Failed to fetch timetable:", e);
+        alert("時刻表の取得に失敗しました");
+      }
+    }
+  };
+
+  const handleBack = () => {
+    if (view === 'timetable') setView('lines');
+    else if (view === 'lines') setView('search');
+  };
+
   return (
     <div className="App">
-      <h1>Welcome to the NEX-T</h1>
-      <div className="search-box">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="駅名を入力"
-        />
-        <button onClick={handleSearch} tabIndex={0}>検索</button>
-      </div>
+      <header className="app-header-nav">
+        {view !== 'search' && (
+          <button onClick={handleBack} className="back-btn">← 戻る</button>
+        )}
+        <h1 className="app-title">{view === 'search' ? 'NEX-T' : view === 'lines' ? selectedStation?.name : selectedLine?.lineName}</h1>
+      </header>
 
-      {/* 選択された駅の路線表示エリア */}
-      {(selectedStation || lines.length > 0) && (
-        <div className="lines-section" style={{ margin: '20px 0', border: '1px solid #ccc', padding: '10px', textAlign: 'left' }}>
-          <h3>{selectedStation ? `${selectedStation.name} の路線一覧` : '路線一覧'}</h3>
-          {lines.length === 0 ? (
-            <p>読み込み中...</p>
-          ) : (
-            <div>
-              <ul>
-                {lines.map((line, index) => (
-                  <li key={index} style={{ marginBottom: '5px' }}>
-                    <button
-                      onClick={() => handleLineSelect(line)}
-                      style={{ background: 'none', border: 'none', color: 'blue', textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit', textAlign: 'left' }}
-                    >
-                      <strong>{line.lineName}</strong>: {line.destination}
-                    </button>
+      {view === 'search' && (
+        <div className="search-view">
+          <div className="search-box">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="駅名を入力 (例: 新宿)"
+            />
+            <button onClick={handleSearch}>検索</button>
+          </div>
+
+          <div className="stations-list">
+            {stations.length > 0 ? (
+              <>
+                <ul>
+                  {stations.map((station) => (
+                    <li key={station.name} className="list-item card" onClick={() => handleStationSelect(station)} role='button'>
+                      <span className="station-name">{station.name}</span>
+                      {/* <span className="chevron">›</span> */}
+                    </li>
+                  ))}
+                </ul>
+                <div className="external-link">
+                  <a href={searchUrl} target="_blank" rel="noopener noreferrer">Yahoo!路線情報で開く</a>                </div>
+              </>
+            ) : (
+              <p className="placeholder-text">駅を検索してください</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {view === 'lines' && (
+        <div className="lines-view">
+          <div className="action-banner">
+            <button
+              onClick={handleNextTrains}
+              disabled={isSearchingNext || lines.length === 0}
+              className="primary-btn full-width"
+            >
+              {isSearchingNext ? '検索中...' : '次の電車を最短検索'}
+            </button>
+          </div>
+
+          {nextTrains.length > 0 && (
+            <div className="next-trains-section card">
+              <h4 className="card-title">直近の出発予定</h4>
+              <ul className="timetable-list">
+                {nextTrains.map((t, i) => (
+                  <li key={i} className="timetable-item card">
+                    <span className="time">{t.time}</span>
+                    <span className="sr-only">&nbsp;</span>
+                    <span className="details">
+                      <span className="line-name" style={{ fontSize: '0.8em', display: 'block', opacity: 0.8 }}>{t.lineName}</span>
+                      <span className="type">{t.type}</span>
+                      <span className="sr-only">&nbsp;</span>
+                      <span className="dest">{t.destination}行</span>
+                    </span>
+                    {t.caution && (
+                      <>
+                        <span className="sr-only">&nbsp;</span>
+                        <span className="caution">{t.caution}</span>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>
-              <div style={{ marginTop: '10px' }}>
-                <small><a href={linesUrl} target="_blank" rel="noopener noreferrer">この駅のページ（Yahoo!路線情報）</a></small>
-              </div>
             </div>
           )}
-        </div>
-      )}
 
-      {/* 時刻表表示エリア */}
-      {trains.length > 0 && (
-        <div className="timetable-section" style={{ margin: '20px 0', border: '1px solid #ccc', padding: '10px', textAlign: 'left' }}>
-          <h3>時刻表</h3>
-          <div style={{ marginTop: '10px', maxHeight: '400px', overflowY: 'auto' }}>
-            <table style={{ width: '100%', fontSize: '0.9rem', borderCollapse: 'collapse' }}>
-              <thead style={{ position: 'sticky', top: 0, background: 'white' }}>
-                <tr style={{ borderBottom: '2px solid #333' }}>
-                  <th style={{ padding: '5px' }}>時間</th>
-                  <th style={{ padding: '5px' }}>種別</th>
-                  <th style={{ padding: '5px' }}>行き先</th>
-                  <th style={{ padding: '5px' }}>備考</th>
-                </tr>
-              </thead>
-              <tbody>
-                {trains.map((t, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #ddd' }}>
-                    <td style={{ padding: '5px' }}>{t.time}</td>
-                    <td style={{ padding: '5px' }}>{t.type}</td>
-                    <td style={{ padding: '5px' }}>{t.destination}</td>
-                    <td style={{ padding: '5px' }}>{t.caution}</td>
-                  </tr>
+          <div className="lines-section">
+            <h3 className="section-label">路線を選択</h3>
+            {lines.length === 0 ? (
+              <p className="loading-text">路線情報を読み込み中...</p>
+            ) : (
+              <ul className="line-list">
+                {lines.map((line, index) => (
+                  <li key={index} className="list-item card" onClick={() => handleLineSelect(line)}>
+                    <div className="line-info">
+                      <span className="line-name">{line.lineName}</span>
+                      <span className="line-dest">{line.destination}</span>
+                    </div>
+                    {/* <span className="chevron">›</span> */}
+                  </li>
                 ))}
-              </tbody>
-            </table>
-          </div>
-          <div style={{ marginTop: '10px' }}>
-            <p><a href={timetableUrl} target="_blank" rel="noopener noreferrer">時刻表ページ（Yahoo!路線情報）</a></p>
+              </ul>
+            )}
+            <div className="external-link">
+              <a href={linesUrl} target="_blank" rel="noopener noreferrer">Yahoo!路線情報で開く</a>
+            </div>
           </div>
         </div>
       )}
 
-      {!selectedStation && stations.length > 0 && (
-        <div className="stations-list">
-          <h3>検索結果</h3>
-          <ul>
-            {stations.map((station) => (
-              <li key={station.name} tabIndex={0} style={{ cursor: 'pointer', textDecoration: 'underline', color: 'blue', margin: '5px 0' }} onClick={() => handleStationSelect(station)} role='button'>
-                {station.name}
-              </li>
-            ))}
-          </ul>
+      {view === 'timetable' && (
+        <div className="timetable-view">
+          <div className="sticky-controls">
+            <div className="kind-selector">
+              {[
+                { label: '平日', val: 1 },
+                { label: '土曜', val: 2 },
+                { label: '日祝', val: 4 }
+              ].map(k => (
+                <button
+                  key={k.val}
+                  onClick={() => handleKindChange(k.val)}
+                  className={`kind-btn ${dayKind === k.val ? 'active' : ''}`}
+                >
+                  {k.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="timetable-content">
+            {trains.length === 0 ? (
+              <p className="loading-text">時刻表を読み込み中...</p>
+            ) : (
+              <ul className="timetable-list">
+                {trains.map((t, i) => (
+                  <li key={i} className="timetable-item card">
+                    <span className="time">{t.time}</span>
+                    <span className="sr-only">&nbsp;</span>
+                    <span className="details">
+                      <span className="type">{t.type}</span>
+                      <span className="sr-only">&nbsp;</span>
+                      <span className="dest">{t.destination}行</span>
+                    </span>
+                    {t.caution && (
+                      <>
+                        <span className="sr-only">&nbsp;</span>
+                        <span className="caution">{t.caution}</span>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="external-link">
+            <a href={timetableUrl} target="_blank" rel="noopener noreferrer">Yahoo!路線情報で時刻表を見る</a>
+          </div>
         </div>
       )}
 
-      <footer style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #ccc', textAlign: 'center' }}>
-        <button 
-          onClick={() => setShowAbout(true)} 
-          style={{ background: 'none', border: 'none', color: '#666', textDecoration: 'underline', cursor: 'pointer', fontSize: '0.9rem' }}
-        >
-          このアプリについて
+      <footer className="app-footer">
+        <button onClick={() => setShowAbout(true)} className="about-btn">
+          ⓘ アプリについて
         </button>
       </footer>
 
