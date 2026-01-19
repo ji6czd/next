@@ -28,7 +28,8 @@ export async function searchStations(query: string): Promise<{ stations: Station
     elements.forEach((el) => {
       const rawHref = el.getAttribute('href');
       const name = el.textContent?.trim();
-      if (rawHref && name) {
+      const searchName = name?.replace(/\(.+\)/g, '');
+      if (rawHref && searchName && searchName.includes(query)) {
         const href = rawHref.split('?')[0];
         results.push({
           name: name,
