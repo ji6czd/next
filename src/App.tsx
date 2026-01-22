@@ -8,6 +8,7 @@ import { SearchView } from './components/SearchView'
 import { LinesView } from './components/LinesView'
 import { TimetableView } from './components/TimetableView'
 import './App.css'
+import { vibrate } from './utils/vibration'
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -35,7 +36,7 @@ function App() {
     const result = await searchStations(searchQuery);
 
     if (result.stations.length > 0) {
-      window.navigator.vibrate(200);
+      vibrate(200);
     }
 
     setStations(result.stations);
@@ -59,7 +60,7 @@ function App() {
     setNextTrains([]);
     try {
       const result = await fetchLines(station.url);
-      window.navigator.vibrate(200);
+      vibrate(200);
       setLines(result.lines);
       setLinesUrl(result.url);
     } catch (e) {
@@ -100,7 +101,7 @@ function App() {
         .slice(0, 15);
 
       setNextTrains(futureTrains);
-      window.navigator.vibrate(200);
+      vibrate(200);
     } catch (e) {
       console.error(e);
       alert("次列車の取得に失敗しました");
@@ -119,7 +120,7 @@ function App() {
       const result = await fetchTimetable(line.url);
       setTrains(result.trains);
       setTimetableUrl(result.url);
-      window.navigator.vibrate(200);
+      vibrate(200);
     } catch (e) {
       console.error("Failed to fetch timetable:", e);
       alert("時刻表の取得に失敗しました");
